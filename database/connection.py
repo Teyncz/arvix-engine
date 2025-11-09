@@ -6,15 +6,23 @@ from sqlalchemy.orm import sessionmaker
 
 load_dotenv()
 
-db_user = os.getenv('DB_USER')
-db_password = os.getenv('DB_PASSWORD')
-db_host = os.getenv('DB_HOST')
-db_port = os.getenv('DB_PORT')
-db_name = os.getenv('DB_NAME')
+db_back_user = os.getenv('DB_BACK_USER')
+db_back_password = os.getenv('DB_BACK_PASSWORD')
+db_back_host = os.getenv('DB_BACK_HOST')
+db_back_port = os.getenv('DB_BACK_PORT')
+db_back_name = os.getenv('DB_BACK_NAME')
 
-db_url = f"postgresql+psycopg2://{db_user}:{db_password}@{db_host}:{db_port}/{db_name}"
+db_front_user = os.getenv('DB_FRONT_USER')
+db_front_password = os.getenv('DB_FRONT_PASSWORD')
+db_front_host = os.getenv('DB_FRONT_HOST')
+db_front_port = os.getenv('DB_FRONT_PORT')
+db_front_name = os.getenv('DB_FRONT_NAME')
 
-engine = create_engine(db_url)
+db_back_url = f"postgresql+psycopg2://{db_back_user}:{db_back_password}@{db_back_host}:{db_back_port}/{db_back_name}"
+db_front_url = f"postgresql+psycopg2://{db_front_user}:{db_front_password}@{db_front_host}:{db_front_port}/{db_front_name}"
+
+engine = create_engine(db_back_url)
+front_engine = create_engine(db_front_url)
 
 #try:
 #    conn = engine.connect()
@@ -24,4 +32,5 @@ engine = create_engine(db_url)
 #    print(e)
 
 SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
+FrontSessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=front_engine)
 

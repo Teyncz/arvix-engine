@@ -14,6 +14,18 @@ def get_all_crypto():
 
     return crypto_list
 
+def get_ticker_id(ticker_code):
+    db = SessionLocal()
+
+    ticker  = db.query(Symbol).filter(Symbol.code == ticker_code).first()
+
+    db.close()
+
+    if ticker:
+        return ticker.id
+    return None
+
+
 def get_ticker_data(ticker_code) :
 
     db = SessionLocal()

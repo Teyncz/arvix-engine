@@ -20,6 +20,24 @@ class TickerDataResponse(BaseModel):
     status: str
     data: TickerDataSchema
 
+class TickerAggregateSchema(BaseModel):
+
+    datetime: int
+    price_open: float = Field(alias="open")
+    price_close: float = Field(alias="close")
+    price_high: float = Field(alias="high")
+    price_low: float = Field(alias="low")
+
+    class Config:
+        from_attributes = True
+        populate_by_name = True
+
+class TickerAggregateResponse(BaseModel):
+    status: str
+    count: int
+    datetime_start: str
+    datetime_end: str
+    data: List[TickerAggregateSchema]
 
 
 

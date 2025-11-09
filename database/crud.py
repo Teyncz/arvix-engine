@@ -1,11 +1,11 @@
-from sqlalchemy.orm import Session
-from sqlalchemy.sql import text
-from sqlalchemy import func
-from .models import Symbol, TickerRateMinute
-from datetime import date
+import calendar
+from sqlalchemy import asc, desc
+from datetime import datetime
+from database.models import Symbol, TickerRateMinute, TickerRateDay
 from psycopg2.extras import execute_values
-from .connection import engine
-from utils.time_utils import get_current_date, calculate_past_date
+from database.connection import engine, SessionLocal
+from utils.ticker import get_ticker_id
+
 
 def insert_bulk_ticker_rate(timeframe, data):
 
@@ -35,46 +35,25 @@ def insert_bulk_ticker_rate(timeframe, data):
     finally:
         raw_conn.close()
 
-def insert_bulk_rates(data_to_insert: list):
+def get_historical_rates(ticker_code: str, start_date: str, end_date: str, limit: int, sort: str):
 
-    raw_conn = engine.raw_connection()
+    order = desc if sort == "desc" else asc
 
-    try:
-        with raw_conn.cursor() as cursor:
-            sql_command = """
-                INSERT INTO currency_daily_rate
-                (date, rate, base_currency_id, target_currency_id)
-                VALUES %s
-            """
+    start_date = calendar.timegm((datetime.strptime(start_date, '%Y-%m-%d')).utctimetuple()) * 1000
+    end_date = calendar.timegm((datetime.strptime(end_date, '%Y-%m-%d')).utctimetuple()) * 1000
 
-            execute_values(
-                cursor,
-                sql_command,
-                data_to_insert,
-                page_size=5000
-            )
+    ticker_id = get_ticker_id(ticker_code)
 
-            raw_conn.commit()
-            return cursor.rowcount
+    if not ticker_id:
+        return {'status': False, 'message': 'Ticker is not found'}
 
-    except Exception as e:
-            raw_conn.rollback()
-            raise Exception(f"Erreur Bulk Insert: {e}")
-    finally:
-        raw_conn.close()
+    db = SessionLocal()
+    query = (db.query(TickerRateDay)
+             .filter(TickerRateDay.ticker_id == ticker_id,TickerRateDay.datetime >= start_date,TickerRateDay.datetime <= end_date)
+             .order_by(order(TickerRateDay.datetime)).limit(limit))
+    db.close()
 
-
-def get_historical_rates_range (db: Session, target_code: int, days: int):
-
-    target_date = calculate_past_date(days)
-
-    result = db.query(CurrencyDailyRate).filter(CurrencyDailyRate.target_currency_id == target_code, CurrencyDailyRate.date >= target_date).order_by(CurrencyDailyRate.date.desc()).all()
-
-    return result
-
-
-def get_last_recorded_date(db: Session, base_id: int, target_id: int):
-
-    latest_date_result = db.query( func.max(CurrencyDailyRate.date)).filter(CurrencyDailyRate.base_currency_id == base_id,CurrencyDailyRate.target_currency_id == target_id).scalar()
-
-    return latest_date_result.date()
+    return {
+        "status": "success",
+        "data": query.all()
+    }
