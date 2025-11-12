@@ -42,3 +42,11 @@ class TickerRateDay(Base):
     price_open = Column(DECIMAL(18, 8), nullable=True)
 
     symbol = relationship("Symbol", back_populates="ticker_id_day")
+
+
+class RequestsUsage(Base):
+    __tablename__ = 'requests_usage'
+
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    user_id = Column(Integer, nullable=False)
+    requests_number = Column(BigInteger, default=0)

@@ -1,13 +1,13 @@
 from collections import defaultdict
 import time
-from typing import Dict
-from fastapi import FastAPI, Response, Depends, HTTPException, Request
+from fastapi import FastAPI, Depends, HTTPException, Request
 from fastapi.responses import JSONResponse
-from fastapi.exceptions import RequestValidationError
 from starlette.middleware.base import BaseHTTPMiddleware
-
-from api.dependencies import check_api_key
+import asyncio
+from database.models import RequestsUsage
+from api.dependencies import check_api_key, get_client_by_api_key, get_credits_amount, get_user_limit_per_user
 from api.routers.v1.crypto import router as crypto_overview_router
+from database.connection import SessionLocal
 
 app = FastAPI(version="0.1.0")
 
@@ -26,32 +26,116 @@ async def http_exception_handler(request: Request, exc: HTTPException):
 class Middleware(BaseHTTPMiddleware):
     def __init__(self, app):
         super().__init__(app)
+        self.api_key_to_user = {}
+        self.user_credits_amount = {}
+        self.user_limit_per_minute = {}
+        self.request_log_counts = defaultdict(int)
         self.rate_limit_records = defaultdict(list)
-        self.limit = 10
         self.window_size = 60
+        self.worker_task = asyncio.create_task(self.worker())
 
     @staticmethod
     async def log_message(message: str):
         print(message)
 
+    async def worker(self):
+        while True:
+            if self.request_log_counts:
+                batch_dict = self.request_log_counts.copy()
+                self.request_log_counts.clear()
+                batch = [{"user_id": user_id, "requests_number": count}
+                         for user_id, count in batch_dict.items()]
+                self.request_log_counts.clear()
+                await self.insert_batch(batch)
+            await asyncio.sleep(60)
+
+    async def insert_batch(self, batch: list):
+        db = SessionLocal()
+        try:
+            for entry in batch:
+                user_id = entry["user_id"]
+                count = entry["requests_number"]
+                db.query(RequestsUsage).filter(RequestsUsage.user_id == user_id).update({
+                    RequestsUsage.requests_number: RequestsUsage.requests_number + count
+                })
+            db.commit()
+            await self.log_message(f"Batch updated: {batch}")
+        finally:
+            db.close()
+
     async def dispatch(self, request: Request, call_next):
-        client_ip = request.client.host
+        #client_ip = request.client.host
+        api_key = request.headers["Authorization"]
+        user_id = None
+        if api_key.startswith("Bearer "):
+            api_key = api_key.split(" ")[1]
+            if api_key not in self.api_key_to_user:
+                user_id = get_client_by_api_key(api_key)
+                self.api_key_to_user[api_key] = user_id
+                await self.log_message(f"Api key {api_key}")
+            else:
+                user_id = self.api_key_to_user[api_key]
+
         current_time = time.time()
 
-        if not self.rate_limit_records[client_ip]:
-            self.rate_limit_records[client_ip].append(current_time)
-        elif current_time - self.rate_limit_records[client_ip][0] > self.window_size :
-            self.rate_limit_records[client_ip].clear()
-            self.rate_limit_records[client_ip].append(current_time)
-        else :
-            if len(self.rate_limit_records[client_ip]) >= self.limit:
-                time_left = self.window_size - (current_time - self.rate_limit_records[client_ip][0])
-                return JSONResponse(status_code=429, content={"status": "ERROR", "error": f"Rate limit reached | {format(round(time_left, 1))} seconds left"})
+        if user_id:
+
+            #Si le cache n'a pas encore enregistré l'API key
+            if not self.rate_limit_records[user_id]:
+
+                if self.user_credits_amount.get(user_id) is None:
+                    self.user_credits_amount[user_id] = get_credits_amount(user_id)
+
+                if self.user_limit_per_minute.get(user_id) is None:
+                    self.user_limit_per_minute[user_id] = get_user_limit_per_user(user_id)
+
+                if self.user_credits_amount[user_id] > 0 :
+
+                    if len(self.rate_limit_records[user_id]) >= self.user_limit_per_minute[user_id]:
+                        time_left = self.window_size - (current_time - self.rate_limit_records[user_id][0])
+                        return JSONResponse(status_code=429, content={"status": "ERROR","error": f"Rate limit reached | {format(round(time_left, 1))} seconds left"})
+
+                    self.rate_limit_records[user_id].append(current_time)
+                    self.request_log_counts[user_id] += 1
+                    self.user_credits_amount[user_id] -= 1
+
+                else:
+                    return JSONResponse(status_code=429, content={"status": "ERROR", "error": f"Rate limit reached for this month"})
+
+            # Si la première requête du record est supérieur à la fenêtre de limite
+            elif current_time - self.rate_limit_records[self.api_key_to_user[api_key]][0] > self.window_size :
+
+                self.user_credits_amount[user_id] = get_credits_amount(user_id)
+
+                if self.user_credits_amount[user_id] > 0:
+
+                    self.rate_limit_records[self.api_key_to_user[api_key]].clear()
+                    self.rate_limit_records[self.api_key_to_user[api_key]].append(current_time)
+                    self.request_log_counts[user_id] += 1
+
+            # Si la première requête du record est inférieur à la fenêtre de limite
             else :
-                self.rate_limit_records[client_ip].append(current_time)
+
+                if len(self.rate_limit_records[user_id]) >= self.user_limit_per_minute[user_id]:
+                    time_left = self.window_size - (current_time - self.rate_limit_records[user_id][0])
+                    return JSONResponse(status_code=429, content={"status": "ERROR", "error": f"Rate limit reached | {format(round(time_left, 1))} seconds left"})
+
+                else :
+
+                    if self.user_credits_amount[user_id] > 0:
+                        self.rate_limit_records[user_id].append(current_time)
+                        self.request_log_counts[user_id] += 1
+                        self.user_credits_amount[user_id] -= 1
+
+                    else:
+                        return JSONResponse(status_code=429, content={"status": "ERROR", "error": f"Rate limit reached for this month"})
 
         path = request.url.path
         await self.log_message(f"Request to {path}")
+        #await self.log_message(f"{self.rate_limit_records[self.api_key_to_user[api_key]]}")
+        #await self.log_message(f"{self.request_log}")
+        #await self.log_message(f"{self.user_credits_amount}")
+        await self.log_message(f"{self.request_log_counts}")
 
         start_time = time.time()
         response = await call_next(request)
