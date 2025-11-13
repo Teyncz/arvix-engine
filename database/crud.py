@@ -6,6 +6,10 @@ from psycopg2.extras import execute_values
 from database.connection import engine, SessionLocal
 from utils.ticker import get_ticker_id
 
+MODEL_MAPPING = {
+    'day': TickerRateDay,
+    'minute': TickerRateMinute,
+}
 
 def insert_bulk_ticker_rate(timeframe, data):
 
@@ -35,7 +39,8 @@ def insert_bulk_ticker_rate(timeframe, data):
     finally:
         raw_conn.close()
 
-def get_historical_rates(ticker_code: str, start_date: str, end_date: str, limit: int, sort: str):
+def get_historical_rates(ticker_code: str,timeframe: str, start_date: str, end_date: str, limit: int, sort: str):
+
 
     order = desc if sort == "desc" else asc
 
@@ -47,10 +52,21 @@ def get_historical_rates(ticker_code: str, start_date: str, end_date: str, limit
     if not ticker_id:
         return {'status': False, 'message': 'Ticker is not found'}
 
+    model_class = MODEL_MAPPING.get(timeframe)
+
+    if limit > 1440 :
+        limit = 1440
+
+    if model_class is None:
+        return {
+            "status": "error",
+            "error": "INVALID TIMEFRAME"
+        }
+
     db = SessionLocal()
-    query = (db.query(TickerRateDay)
-             .filter(TickerRateDay.ticker_id == ticker_id,TickerRateDay.datetime >= start_date,TickerRateDay.datetime <= end_date)
-             .order_by(order(TickerRateDay.datetime)).limit(limit))
+    query = (db.query(model_class)
+             .filter(model_class.ticker_id == ticker_id,model_class.datetime >= start_date,model_class.datetime <= end_date)
+             .order_by(order(model_class.datetime)).limit(limit))
     db.close()
 
     return {

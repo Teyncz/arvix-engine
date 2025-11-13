@@ -8,7 +8,7 @@ class Base(DeclarativeBase):
 class Symbol(Base):
     __tablename__ = 'symbol'
 
-    id = Column(Integer, primary_key=True, index=True)
+    id = Column(Integer, primary_key=True, index=True, autoincrement=True)
     code = Column(String, unique=True, index=True, nullable=False)
     provider_code = Column(String, unique=True, index=True, nullable=False)
     type = Column(String, index=True, nullable=False)
@@ -20,7 +20,7 @@ class Symbol(Base):
 class TickerRateMinute(Base):
     __tablename__ = 'ticker_rate_minute'
 
-    id = Column(Integer, primary_key=True, index=True)
+    id = Column(Integer, primary_key=True, index=True, autoincrement=True)
     ticker_id = Column(Integer, ForeignKey('symbol.id'), nullable=False)
     datetime = Column(BigInteger, index=True, nullable=False)
     price_high = Column(DECIMAL(18, 8), nullable=True)
@@ -33,7 +33,7 @@ class TickerRateMinute(Base):
 class TickerRateDay(Base):
     __tablename__ = 'ticker_rate_day'
 
-    id = Column(Integer, primary_key=True, index=True)
+    id = Column(Integer, primary_key=True, index=True, autoincrement=True)
     ticker_id = Column(Integer, ForeignKey('symbol.id'), nullable=False)
     datetime = Column(BigInteger, index=True, nullable=False)
     price_high = Column(DECIMAL(18, 8), nullable=True)

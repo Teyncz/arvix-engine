@@ -25,15 +25,21 @@ def read_overview(ticker_code: str):
         "status": data['status']
     }
 
-@router.get("/ticker/{ticker_code}/aggregate/{from_date}/{to_date}", response_model=TickerAggregateResponse)
-def read_overview(ticker_code: str, from_date: str, to_date: str, limit: int = None, sort: str = 'asc'):
-    data = get_historical_rates(ticker_code, from_date, to_date, limit, sort)
-    if not data :
-        raise HTTPException(status_code=404, detail="Invalid ticker")
+@router.get("/ticker/{ticker_code}/aggregate/{timeframe}/{from_date}/{to_date}", response_model=TickerAggregateResponse)
+def read_overview(ticker_code: str,timeframe: str, from_date: str, to_date: str, limit: int = None, sort: str = 'asc'):
+    data = get_historical_rates(ticker_code,timeframe, from_date, to_date, limit, sort)
+    if data['status'] != 'success':
+        match data['error']:
+            case 'INVALID TIMEFRAME':
+                raise HTTPException(status_code=404, detail="Invalid timeframe")
+            case _:
+                raise HTTPException(status_code=404, detail="Error")
+
     return {
         "status": data['status'],
         "count": len(data['data']),
         "datetime_start" : from_date,
         "datetime_end": to_date,
+        "timeframe": timeframe,
         "data": data['data'],
     }

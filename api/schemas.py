@@ -37,6 +37,7 @@ class TickerAggregateResponse(BaseModel):
     count: int
     datetime_start: str
     datetime_end: str
+    timeframe: str
     data: List[TickerAggregateSchema]
 
 

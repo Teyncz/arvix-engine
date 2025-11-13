@@ -29,26 +29,44 @@ def is_ticker_up_to_day(last_date, timestamp):
             return False
 
 
-def build_annual_ranges(start_date):
-
-    today = datetime.today().replace(hour=0, minute=0, second=0, microsecond=0)
+def build_time_ranges(start_date, timeframe):
 
     start_date = datetime.fromisoformat(start_date)
 
     dates: list[Any] = []
 
-    while start_date < today:
-        end_date = start_date + relativedelta(years=1)
-        is_last = False
+    match timeframe:
+        case 'day':
+            today = datetime.today().replace(hour=0, minute=0, second=0, microsecond=0)
+            while start_date < today:
+                end_date = start_date + relativedelta(years=1)
+                is_last = False
 
-        if end_date > today:
-            is_last = True
-            end_date = today
+                if end_date > today:
+                    is_last = True
+                    end_date = today
 
-        value = {'start_date': int(calendar.timegm(start_date.utctimetuple()) * 1000),'end_date': int(calendar.timegm((end_date - timedelta(days=1)).utctimetuple()) * 1000)}
-        dates.append(value)
+                value = {'start_date': int(calendar.timegm(start_date.utctimetuple()) * 1000),'end_date': int(calendar.timegm((end_date - timedelta(days=1)).utctimetuple()) * 1000)}
+                dates.append(value)
+                start_date = end_date
 
+            return dates
+        case 'minute':
+            today = datetime.today().replace(second=0, microsecond=0) - relativedelta(minutes=1)
+            while start_date < today:
+                end_date = start_date + relativedelta(hours=12)
+                is_last = False
 
-        start_date = end_date
+                if end_date >= today:
+                    is_last = True
+                    end_date = datetime.today().replace(second=0, microsecond=0) - relativedelta(minutes=1)
 
-    return dates
+                value = {'start_date': int(calendar.timegm((start_date + timedelta(minutes=1)).utctimetuple()) * 1000),
+                         'end_date': int(calendar.timegm((end_date).utctimetuple()) * 1000)}
+                dates.append(value)
+
+                start_date = end_date
+
+            return dates
+        case _:
+            return False

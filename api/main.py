@@ -30,9 +30,9 @@ class Middleware(BaseHTTPMiddleware):
         self.user_credits_amount = {}
         self.user_limit_per_minute = {}
         self.request_log_counts = defaultdict(int)
-        self.rate_limit_records = defaultdict(list)
         self.window_size = 60
         self.worker_task = asyncio.create_task(self.worker())
+        self.last_batch_time = time.time()
 
     @staticmethod
     async def log_message(message: str):
@@ -45,7 +45,6 @@ class Middleware(BaseHTTPMiddleware):
                 self.request_log_counts.clear()
                 batch = [{"user_id": user_id, "requests_number": count}
                          for user_id, count in batch_dict.items()]
-                self.request_log_counts.clear()
                 await self.insert_batch(batch)
             await asyncio.sleep(60)
 
@@ -59,6 +58,7 @@ class Middleware(BaseHTTPMiddleware):
                     RequestsUsage.requests_number: RequestsUsage.requests_number + count
                 })
             db.commit()
+            self.last_batch_time = time.time()
             await self.log_message(f"Batch updated: {batch}")
         finally:
             db.close()
@@ -81,49 +81,38 @@ class Middleware(BaseHTTPMiddleware):
         if user_id:
 
             #Si le cache n'a pas encore enregistré l'API key
-            if not self.rate_limit_records[user_id]:
+            if not self.request_log_counts[user_id]:
 
+                # Récupère les crédits restant
                 if self.user_credits_amount.get(user_id) is None:
                     self.user_credits_amount[user_id] = get_credits_amount(user_id)
 
+                # Récupère le rate limite du plan de l'utilisateur
                 if self.user_limit_per_minute.get(user_id) is None:
                     self.user_limit_per_minute[user_id] = get_user_limit_per_user(user_id)
 
                 if self.user_credits_amount[user_id] > 0 :
 
-                    if len(self.rate_limit_records[user_id]) >= self.user_limit_per_minute[user_id]:
-                        time_left = self.window_size - (current_time - self.rate_limit_records[user_id][0])
+                    if self.request_log_counts[user_id] >= self.user_limit_per_minute[user_id]:
+                        time_left = self.window_size - (current_time - self.last_batch_time)
                         return JSONResponse(status_code=429, content={"status": "ERROR","error": f"Rate limit reached | {format(round(time_left, 1))} seconds left"})
 
-                    self.rate_limit_records[user_id].append(current_time)
                     self.request_log_counts[user_id] += 1
                     self.user_credits_amount[user_id] -= 1
 
                 else:
                     return JSONResponse(status_code=429, content={"status": "ERROR", "error": f"Rate limit reached for this month"})
 
-            # Si la première requête du record est supérieur à la fenêtre de limite
-            elif current_time - self.rate_limit_records[self.api_key_to_user[api_key]][0] > self.window_size :
-
-                self.user_credits_amount[user_id] = get_credits_amount(user_id)
-
-                if self.user_credits_amount[user_id] > 0:
-
-                    self.rate_limit_records[self.api_key_to_user[api_key]].clear()
-                    self.rate_limit_records[self.api_key_to_user[api_key]].append(current_time)
-                    self.request_log_counts[user_id] += 1
-
-            # Si la première requête du record est inférieur à la fenêtre de limite
+            # Si le cache connait déjà l'API key
             else :
 
-                if len(self.rate_limit_records[user_id]) >= self.user_limit_per_minute[user_id]:
-                    time_left = self.window_size - (current_time - self.rate_limit_records[user_id][0])
+                if self.request_log_counts[user_id] >= self.user_limit_per_minute[user_id]:
+                    time_left = self.window_size - (current_time - self.last_batch_time)
                     return JSONResponse(status_code=429, content={"status": "ERROR", "error": f"Rate limit reached | {format(round(time_left, 1))} seconds left"})
 
                 else :
 
                     if self.user_credits_amount[user_id] > 0:
-                        self.rate_limit_records[user_id].append(current_time)
                         self.request_log_counts[user_id] += 1
                         self.user_credits_amount[user_id] -= 1
 
@@ -132,7 +121,6 @@ class Middleware(BaseHTTPMiddleware):
 
         path = request.url.path
         await self.log_message(f"Request to {path}")
-        #await self.log_message(f"{self.rate_limit_records[self.api_key_to_user[api_key]]}")
         #await self.log_message(f"{self.request_log}")
         #await self.log_message(f"{self.user_credits_amount}")
         await self.log_message(f"{self.request_log_counts}")
