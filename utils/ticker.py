@@ -10,9 +10,17 @@ def get_all_crypto():
     db = SessionLocal()
 
     crypto_list = db.query(Symbol).filter(Symbol.type == "CRYPTO").all()
+    result = []
+    for s in crypto_list:
+        result.append({
+            "id": s.id,
+            "ticker": s.code,
+            "provider_code": s.provider_code,
+            "name": s.name
+        })
     db.close()
 
-    return crypto_list
+    return result
 
 def get_ticker_id(ticker_code):
     db = SessionLocal()

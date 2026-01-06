@@ -5,12 +5,16 @@ from fastapi.responses import JSONResponse
 from starlette.middleware.base import BaseHTTPMiddleware
 import asyncio
 from database.models import RequestsUsage
-from api.dependencies import check_api_key, get_client_by_api_key, get_credits_amount, get_user_limit_per_user
+from api.dependencies import check_api_key, get_client_by_api_key, get_credits_amount, get_user_limit_per_user, verify_internal_secret
 from api.routers.v1.crypto import router as crypto_overview_router
+from api.routers.admin.key import router as admin_key_router
+from api.routers.admin.user import router as admin_user_router
 from database.connection import SessionLocal
 
 app = FastAPI(version="0.1.0")
 
+app.include_router(admin_key_router, prefix="/admin/key", dependencies=[Depends(verify_internal_secret)])
+app.include_router(admin_user_router, prefix="/admin/user", dependencies=[Depends(verify_internal_secret)])
 app.include_router(crypto_overview_router, prefix="/v1/crypto", dependencies=[Depends(check_api_key)])
 
 @app.exception_handler(HTTPException)
@@ -65,6 +69,15 @@ class Middleware(BaseHTTPMiddleware):
 
     async def dispatch(self, request: Request, call_next):
         #client_ip = request.client.host
+        path = request.url.path
+
+        PROTECTED_PREFIXES = ["/v1/"]
+
+        is_protected = any(path.startswith(prefix) for prefix in PROTECTED_PREFIXES)
+
+        if not is_protected:
+            return await call_next(request)
+
         api_key = request.headers["Authorization"]
         user_id = None
         if api_key.startswith("Bearer "):

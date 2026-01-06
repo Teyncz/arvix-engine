@@ -1,16 +1,18 @@
 from database.connection import SessionLocal, FrontSessionLocal
-from database.models import RequestsUsage
+from database.models import RequestsUsage, ApiKey, User, Plan
 from fastapi.security import APIKeyHeader, APIKeyQuery
-from fastapi import Security, HTTPException, status, Query
-from sqlalchemy import text
+from fastapi import Security, HTTPException, status, Query, Header
+from sqlalchemy import text, func
+from core.config import SYNC_API_SECRET
 from sqlalchemy.orm import Session
-from typing import Generator
+from typing import Generator, Annotated
 
 api_key_header = APIKeyHeader(name="Authorization", auto_error=False)
 api_key_query = APIKeyQuery(name="api_key", auto_error=False)
 
-def check_api_key( api_key_header_val: str = Security(api_key_header), api_key_query_val: str = Security(api_key_query)) -> bool:
 
+def check_api_key(api_key_header_val: str = Security(api_key_header),
+                  api_key_query_val: str = Security(api_key_query)) -> bool:
     api_key = api_key_header_val or api_key_query_val
 
     if not api_key:
@@ -22,72 +24,95 @@ def check_api_key( api_key_header_val: str = Security(api_key_header), api_key_q
         else:
             raise HTTPException(status_code=401, detail="Authorization header format is incorrect")
 
-    db = FrontSessionLocal()
+    db: Session | None = None
 
     try:
-        result = db.execute(text("SELECT id FROM api_key WHERE key = :api_key"), {"api_key": api_key})
-        user = result.fetchone()
-        if user:
+        db = SessionLocal()
+        key = db.query(ApiKey).filter(ApiKey.key == api_key, ApiKey.status == True).first()
+
+        if key:
             return True
         else:
-            raise HTTPException(status_code=401, detail="Invalid API key")
+            raise HTTPException(status_code=401, detail="Invalid or Inactive API key")
     finally:
         db.close()
+
 
 def get_client_by_api_key(api_key: str):
-    db = FrontSessionLocal()
+    db: Session | None = None
+
     try:
-        result = db.execute(text("SELECT user_id FROM api_key WHERE key = :api_key"), {"api_key": api_key})
-        user = result.mappings().fetchone()
-        if user:
-            return user['user_id']
-        else:
-            return None
+        db = SessionLocal()
+
+        key = db.query(ApiKey).filter(ApiKey.key == api_key, ApiKey.status == True).first()
+
+        return key.userId if key else None
+    except Exception as ex:
+        raise HTTPException(status_code=401, detail="Invalid API key")
+
+    finally:
+        if db:
+            db.close()
+
+
+def get_credits_amount(user_id: str, with_limit: bool = False):
+    db = SessionLocal()
+
+    try:
+        amount_used_query = db.query(func.sum(RequestsUsage.requests_number)).filter(
+            RequestsUsage.user_id == user_id).scalar()
+
+        amount_used = amount_used_query if amount_used_query is not None else 0
+
+        plan_limit_query = db.query(Plan.monthlyRateLimit).join(User).filter(User.id == user_id).scalar()
+
+        monthly_limit = plan_limit_query if plan_limit_query is not None else 0
+
+        if monthly_limit == 0:
+            return 0
+
+        credit_amount = monthly_limit - amount_used
+
+        if with_limit:
+            return {'credit_amount': credit_amount, 'monthly_limit': monthly_limit}
+
+        return int(credit_amount)
+
+    except Exception as e:
+        print(f"Erreur API Python: {e}")
+        return None
+
     finally:
         db.close()
 
 
-def get_credits_amount(user_id: int):
-    db = SessionLocal()
-    query = (db.query(RequestsUsage).filter(RequestsUsage.user_id == user_id))
-    amount = query.first()
-    db.close()
-    if amount:
-
-        amount = amount.requests_number
-        db_front = FrontSessionLocal()
-
-        try:
-            r = db_front.execute(text("SELECT plan.monthly_limit FROM plan INNER JOIN users ON users.plan = plan.id WHERE users.id = :user_id"), {"user_id": user_id})
-            plan = r.mappings().fetchone()
-            if plan:
-                monthly_limit = plan['monthly_limit']
-
-                credit_amount = monthly_limit - amount
-
-                return credit_amount
-            else:
-                return None
-
-        finally:
-            db_front.close()
-    else:
-        return None
-
 def get_user_limit_per_user(user_id: int):
-    db_front = FrontSessionLocal()
+    db: Session | None = None
 
     try:
-        r = db_front.execute(text(
-            "SELECT plan.minute_limit FROM plan INNER JOIN users ON users.plan = plan.id WHERE users.id = :user_id"),
-                             {"user_id": user_id})
-        plan = r.mappings().fetchone()
-        if plan:
-            minute_limit = plan['minute_limit']
+        db = SessionLocal()
 
-            return minute_limit
+        minute_limit_query = db.query(Plan.minuteRateLimit).join(User).filter(
+            User.id == user_id
+        ).scalar()
+
+        if minute_limit_query is not None:
+            return int(minute_limit_query)
         else:
             return None
 
+    except Exception as ex:
+        print(f"Erreur BDD lors de la récupération de la limite: {ex}")
+        return None
+
     finally:
-        db_front.close()
+        db.close()
+
+
+async def verify_internal_secret(x_internal_secret: Annotated[str, Header(alias="X-Internal-Secret")]):
+    if not x_internal_secret or x_internal_secret != SYNC_API_SECRET:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Accès non autorisé. Jeton de synchronisation invalide."
+        )
+    return True

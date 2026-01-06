@@ -1,10 +1,10 @@
 from fastapi import APIRouter, HTTPException
 from utils.ticker import get_all_crypto, get_ticker_data
 from database.crud import get_historical_rates
-from api.schemas import TickerDataResponse, TickerAggregateResponse
+from api.schemas import TickerDataResponse, TickerAggregateResponse, TickerOverviewResponse
 router = APIRouter()
 
-@router.get("/overview", response_model=TickerDataResponse)
+@router.get("/overview", response_model=TickerOverviewResponse)
 def read_overview():
     data = get_all_crypto()
     if not data :
@@ -16,9 +16,10 @@ def read_overview():
     }
 
 @router.get("/ticker/{ticker_code}", response_model=TickerDataResponse)
-def read_overview(ticker_code: str):
+def get_ticker_infos(ticker_code: str):
     data = get_ticker_data(ticker_code)
-    if not data :
+    # data is a dict with keys status, message, ticker_data. Ensure ticker_data exists
+    if not data or not data.get('ticker_data'):
         raise HTTPException(status_code=404, detail="Invalid ticker")
     return {
         "data": data['ticker_data'],
@@ -26,7 +27,7 @@ def read_overview(ticker_code: str):
     }
 
 @router.get("/ticker/{ticker_code}/aggregate/{timeframe}/{from_date}/{to_date}", response_model=TickerAggregateResponse)
-def read_overview(ticker_code: str,timeframe: str, from_date: str, to_date: str, limit: int = None, sort: str = 'asc'):
+def read_ticker_in_range(ticker_code: str,timeframe: str, from_date: str, to_date: str, limit: int = None, sort: str = 'asc'):
     data = get_historical_rates(ticker_code,timeframe, from_date, to_date, limit, sort)
     if data['status'] != 'success':
         match data['error']:

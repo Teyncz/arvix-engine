@@ -4,7 +4,7 @@ from typing import List
 
 class TickerDataSchema(BaseModel):
 
-    code: str = Field(alias="ticker")
+    ticker: str
     name: str
 
     class Config:
@@ -40,7 +40,25 @@ class TickerAggregateResponse(BaseModel):
     timeframe: str
     data: List[TickerAggregateSchema]
 
+# --------- Admin Schema --------- #
 
+class ApiKeySyncSchema(BaseModel):
+    key_id: str
+    key: str
+    name: str
+    user_id: str
 
+class EditApiKeySyncSchema(BaseModel):
+    key_id: str
+    status: bool | None = None
+    name: str | None = None
 
+class UserUsage(BaseModel):
+    user_id: str
 
+class DeleteApiKeySyncSchema(BaseModel):
+    key_id: str
+
+class UserSyncSchema(BaseModel):
+    user_id: str
+    email: str
