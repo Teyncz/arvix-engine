@@ -19,6 +19,8 @@ class Symbol(Base):
     ticker_id_minute = relationship("TickerRateMinute", back_populates="symbol", foreign_keys="TickerRateMinute.ticker_id")
     ticker_id_day = relationship("TickerRateDay", back_populates="symbol", foreign_keys="TickerRateDay.ticker_id")
     ticker_id_hour = relationship("TickerRateHour", back_populates="symbol", foreign_keys="TickerRateHour.ticker_id")
+    ticker_id_week = relationship("TickerRateWeek", back_populates="symbol", foreign_keys="TickerRateWeek.ticker_id")
+    ticker_id_month = relationship("TickerRateMonth", back_populates="symbol", foreign_keys="TickerRateMonth.ticker_id")
 
 class TickerRateMinute(Base):
     __tablename__ = 'ticker_rate_minute'
@@ -60,6 +62,33 @@ class TickerRateDay(Base):
     price_open = Column(DECIMAL(18, 8), nullable=True)
 
     symbol = relationship("Symbol", back_populates="ticker_id_day")
+
+class TickerRateWeek(Base):
+    __tablename__ = 'ticker_rate_week'
+
+    id = Column(Integer, primary_key=True, index=True, autoincrement=True)
+    ticker_id = Column(Integer, ForeignKey('symbol.id'), nullable=False)
+    datetime = Column(BigInteger, index=True, nullable=False)
+    price_high = Column(DECIMAL(18, 8), nullable=True)
+    price_low = Column(DECIMAL(18, 8), nullable=True)
+    price_close = Column(DECIMAL(18, 8), nullable=True)
+    price_open = Column(DECIMAL(18, 8), nullable=True)
+
+    symbol = relationship("Symbol", back_populates="ticker_id_week")
+
+
+class TickerRateMonth(Base):
+    __tablename__ = 'ticker_rate_month'
+
+    id = Column(Integer, primary_key=True, index=True, autoincrement=True)
+    ticker_id = Column(Integer, ForeignKey('symbol.id'), nullable=False)
+    datetime = Column(BigInteger, index=True, nullable=False)
+    price_high = Column(DECIMAL(18, 8), nullable=True)
+    price_low = Column(DECIMAL(18, 8), nullable=True)
+    price_close = Column(DECIMAL(18, 8), nullable=True)
+    price_open = Column(DECIMAL(18, 8), nullable=True)
+
+    symbol = relationship("Symbol", back_populates="ticker_id_month")
 
 class RequestsUsage(Base):
     __tablename__ = 'requests_usage'

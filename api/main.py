@@ -7,15 +7,19 @@ import asyncio
 from database.models import RequestsUsage
 from api.dependencies import check_api_key, get_client_by_api_key, get_credits_amount, get_user_limit_per_user, verify_internal_secret
 from api.routers.v1.crypto import router as crypto_overview_router
+from api.routers.v1.indices import router as indices_overview_router
 from api.routers.admin.key import router as admin_key_router
 from api.routers.admin.user import router as admin_user_router
 from database.connection import SessionLocal
+from core.exceptions import AppException
 
 app = FastAPI(version="0.1.0")
 
 app.include_router(admin_key_router, prefix="/admin/key", dependencies=[Depends(verify_internal_secret)])
 app.include_router(admin_user_router, prefix="/admin/user", dependencies=[Depends(verify_internal_secret)])
 app.include_router(crypto_overview_router, prefix="/v1/crypto", dependencies=[Depends(check_api_key)])
+
+app.include_router(indices_overview_router, prefix="/v1/indices", dependencies=[Depends(check_api_key)])
 
 @app.exception_handler(HTTPException)
 async def http_exception_handler(request: Request, exc: HTTPException):
@@ -24,6 +28,16 @@ async def http_exception_handler(request: Request, exc: HTTPException):
         content={
             "status": "ERROR",
             "error": exc.detail
+        }
+    )
+
+@app.exception_handler(AppException)
+async def app_exception_handler(request: Request, exc: AppException):
+    return JSONResponse(
+        status_code=exc.status_code,
+        content={
+            "status": "ERROR",
+            "error": exc.message
         }
     )
 

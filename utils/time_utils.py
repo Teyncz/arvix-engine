@@ -2,7 +2,7 @@ import datetime
 from sqlalchemy import func
 from datetime import datetime, time, timedelta, timezone
 from database.connection import SessionLocal
-from database.models import TickerRateMinute, TickerRateDay, TickerRateHour, Symbol
+from database.models import TickerRateMinute, TickerRateDay, TickerRateHour, Symbol, TickerRateMonth, TickerRateWeek
 from typing import Any
 
 from dateutil.relativedelta import relativedelta
@@ -41,7 +41,7 @@ def is_ticker_up_to_day(last_date, timestamp):
 def get_last_date_by_type(ticker_type, timeframe):
     db = SessionLocal()
 
-    models = {"minute": TickerRateMinute, "day": TickerRateDay, "hour": TickerRateHour}
+    models = {"minute": TickerRateMinute, "day": TickerRateDay, "hour": TickerRateHour, "month": TickerRateMonth, "week": TickerRateWeek}
 
     model = models.get(timeframe)
 
@@ -74,10 +74,9 @@ def build_raw_time_ranges(timeframe, ticker_list):
 
     print(results)
 
-
 # Get
 def build_time_ranges(start_date, timeframe):
-    start_dates_default = {"day": '2020-01-01', "minute": '2025-05-01', "hour": '2023-01-01'}
+    start_dates_default = {"day": '2020-01-01', "minute": '2025-05-01', "hour": '2023-01-01', "month": '2020-01-01', "week": '2020-01-01'}
 
     if start_date is None:
         start_date = start_dates_default[timeframe]
@@ -96,6 +95,40 @@ def build_time_ranges(start_date, timeframe):
     dates: list[Any] = []
 
     match timeframe:
+        case 'week':
+            today = datetime.today().replace(hour=0, minute=0, second=0, microsecond=0)
+            while start_date < today:
+                end_date = start_date + relativedelta(years=10)
+                is_last = False
+
+                if end_date > today:
+                    is_last = True
+                    end_date = today
+
+                value = {'start_date': int(calendar.timegm(start_date.utctimetuple()) * 1000),
+                         'end_date': int(calendar.timegm((end_date - timedelta(days=1)).utctimetuple()) * 1000)}
+                dates.append(value)
+                start_date = end_date
+
+            return dates
+
+        case 'month':
+            today = datetime.today().replace(day=1, hour=0, minute=0, second=0, microsecond=0)
+            while start_date < today:
+                end_date = start_date + relativedelta(years=10)
+                is_last = False
+
+                if end_date > today:
+                    is_last = True
+                    end_date = today
+
+                value = {'start_date': int(calendar.timegm(start_date.utctimetuple()) * 1000),
+                         'end_date': int(calendar.timegm((end_date - timedelta(days=1)).utctimetuple()) * 1000)}
+                dates.append(value)
+                start_date = end_date
+
+            return dates
+
         case 'hour':
             today = datetime.today().replace(minute=0, second=0, microsecond=0) - relativedelta(hours=2)
             while start_date < today:

@@ -22,7 +22,23 @@ def get_all_crypto():
 
     return result
 
-def get_ticker_id(ticker_code):
+def get_ticker_list_by_type(ticker_type: str) -> Any:
+    db = SessionLocal()
+
+    ticker_list = db.query(Symbol).filter(Symbol.type == ticker_type).all()
+    result = []
+    for s in ticker_list:
+        result.append({
+            "id": s.id,
+            "ticker": s.code,
+            "provider_code": s.provider_code,
+            "name": s.name
+        })
+    db.close()
+
+    return result
+
+def get_ticker(ticker_code):
     db = SessionLocal()
 
     ticker  = db.query(Symbol).filter(Symbol.code == ticker_code).first()
@@ -30,29 +46,41 @@ def get_ticker_id(ticker_code):
     db.close()
 
     if ticker:
-        return ticker.id
+        return {
+            "id": ticker.id,
+            "ticker": ticker.code,
+            "provider_code": ticker.provider_code,
+            "name": ticker.name,
+            "type": ticker.type
+        }
     return None
 
 
-def get_ticker_data(ticker_code) :
-
-    db = SessionLocal()
+def get_ticker_data(ticker_code, type) :
 
     status = "success"
     message = False
 
-    ticker_data = db.query(Symbol).filter(Symbol.code == ticker_code).first()
+    db = SessionLocal()
+    ticker_data = db.query(Symbol).filter(Symbol.code == ticker_code, Symbol.type == type).first()
+    db.close()
 
     if not ticker_data :
         status = "NotFound"
         message = "Ticker not found."
-
-    db.close()
+        return {
+            "status": status,
+            "message": message,
+            "ticker_data": None
+        }
 
     return {
         "status": status,
         "message": message,
-        "ticker_data": ticker_data
+        "ticker_data": {
+            "ticker": ticker_data.code,
+            "name": ticker_data.name,
+        }
     }
 
 
