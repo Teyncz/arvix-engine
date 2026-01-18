@@ -62,7 +62,7 @@ def edit_api_key(key_id, status, name):
             return None
 
     except Exception as e:
-        print(f"Erreur BDD lors de l'édition de la clé {key_id}: {e}")
+        print(f"Database error when editing the key {key_id}: {e}")
         if db:
             db.rollback()
         return None
