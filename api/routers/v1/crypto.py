@@ -1,7 +1,7 @@
 from fastapi import APIRouter, HTTPException
 from utils.ticker import get_all_crypto, get_ticker_data
 from database.crud import get_historical_rates
-from api.schemas import TickerDataResponse, TickerAggregateResponse, TickerOverviewResponse
+from api.schemas import TickerDataResponse, TickerAggregateResponse, TickerOverviewResponse, TickerAggregateSchema
 router = APIRouter()
 
 @router.get("/overview", response_model=TickerOverviewResponse)
@@ -26,7 +26,7 @@ def get_ticker_infos(ticker_code: str):
         "status": data['status']
     }
 
-@router.get("/ticker/{ticker_code}/aggregate/{timeframe}/{from_date}/{to_date}", response_model=TickerAggregateResponse)
+@router.get("/ticker/{ticker_code}/aggregate/{timeframe}/{from_date}/{to_date}", response_model=TickerAggregateResponse[TickerAggregateSchema])
 def read_ticker_in_range(ticker_code: str,timeframe: str, from_date: str, to_date: str, limit: int = None, sort: str = 'asc'):
     data = get_historical_rates(ticker_code,timeframe, from_date, to_date, limit, sort, type='CRYPTO')
     if data['status'] != 'success':

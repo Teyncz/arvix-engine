@@ -1,6 +1,24 @@
 from pydantic import BaseModel, Field
 from datetime import datetime
-from typing import List
+from typing import TypeVar, Generic, List
+
+T = TypeVar("T")
+
+# --------- Currency Schema --------- #
+
+class CurrencyConversionSchema(BaseModel):
+    base_currency: str = Field(alias="base_currency")
+    target_currency: str = Field(alias="target_currency")
+    input_amount: float = Field(alias="input_amount")
+    converted_amount: float = Field(alias="converted_amount")
+    exchange_rate: float = Field(alias="exchange_rate")
+    last_update: int = Field(alias="last_update")
+
+class CurrencyConversionResponse(BaseModel):
+    status: str
+    data: CurrencyConversionSchema
+
+# --------- Ticker Schema --------- #
 
 class TickerDataSchema(BaseModel):
 
@@ -32,13 +50,20 @@ class TickerAggregateSchema(BaseModel):
         from_attributes = True
         populate_by_name = True
 
-class TickerAggregateResponse(BaseModel):
+class TickerSimpleAggregateSchema(BaseModel):
+    datetime: int
+    price: float = Field(validation_alias="open", serialization_alias="rate")
+    class Config:
+        from_attributes = True
+        populate_by_name = True
+
+class TickerAggregateResponse(BaseModel, Generic[T]):
     status: str
     count: int
     datetime_start: str
     datetime_end: str
     timeframe: str
-    data: List[TickerAggregateSchema]
+    data: List[T]
 
 # --------- Admin Schema --------- #
 

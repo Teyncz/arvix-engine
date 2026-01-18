@@ -63,6 +63,25 @@ def insert_bulk_ticker_rate(timeframe, data):
         raw_conn.close()
 
 
+def get_last_entry_by_code(ticker_code: str) -> float:
+    ticker = get_ticker(ticker_code)
+    if not ticker:
+        return None
+
+    db = SessionLocal()
+    try:
+        value = (db.query(TickerRateDay.price_close, TickerRateDay.datetime)
+                 .filter(TickerRateDay.ticker_id == ticker['id'])
+                 .order_by(desc(TickerRateDay.datetime))
+                 .first())
+
+        if value:
+            price_close = value[0]
+            datetime = value[1]
+            return {"price_close": price_close, "datetime": datetime}
+    finally:
+        db.close()
+
 def get_historical_rates(ticker_code: str, timeframe: str, start_date: str, end_date: str, limit: Optional[int],sort: str, type: str = 'INDEX') :
     order = desc if sort == "desc" else asc
     ticker = get_ticker(ticker_code)

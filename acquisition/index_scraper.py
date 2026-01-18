@@ -65,7 +65,7 @@ async def fetch_candles(session, url, querystring, ticker_id, provider_code, las
             print(f"Erreur réseau pour {provider_code}: {e}")
             return []
 
-async def run_async_acquisition(index_list, intervals, timeframe, url):
+async def run_async_acquisition(index_list, intervals, timeframe):
     tasks = []
 
     sem = asyncio.Semaphore(1)
@@ -110,12 +110,10 @@ async def run_async_acquisition(index_list, intervals, timeframe, url):
 def fetch_index_data(timeframe):
     index_list = get_ticker_list_by_type("INDEX")
 
-    url = 'https://stooq.com/q/d/l/?s=aapl.us&i=d'
-
     intervals = {"day": 'd', "month": 'm', "week": 'w', 'year': 'y'}
 
     last_entry = get_last_date_by_type('INDEX', timeframe)
 
-    asyncio.run(run_async_acquisition(index_list, intervals, timeframe, url))
+    asyncio.run(run_async_acquisition(index_list, intervals, timeframe))
 
 fetch_index_data('day')
