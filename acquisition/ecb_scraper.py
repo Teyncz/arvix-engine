@@ -41,9 +41,12 @@ async def fetch_candles(session, url, querystring, ticker_id, provider_code, las
                 filtered_data = []
 
                 for row in data:
-                    current_dt = datetime.strptime(row[6], "%Y-%m-%d").replace(tzinfo=timezone.utc)
+                    date_str = row[6]
+                    date_format = "%Y-%m-%d" if len(date_str) > 7 else "%Y-%m"
+
+                    current_dt = datetime.strptime(date_str, date_format).replace(tzinfo=timezone.utc)
                     current_timestamp_ms = int(current_dt.timestamp() * 1000)
-                    price = row[7].replace(",", ".")
+                    price = row[7].replace(",", ".") if row[7] else '0'
 
                     if price == '' or price is None:
                         price = '0'
@@ -117,10 +120,10 @@ async def run_async_acquisition(index_list, intervals, timeframe):
 def fetch_index_data(timeframe):
     index_list = get_ticker_list_by_type("CURRENCY")
 
-    intervals = {"day": 'D', "month": 'M'}
+    intervals = {"day": 'D', "month": 'M', "year": 'A'}
 
     last_entry = get_last_date_by_type('INDEX', timeframe)
 
     asyncio.run(run_async_acquisition(index_list, intervals, timeframe))
 
-fetch_index_data('day')
+fetch_index_data('month')
