@@ -29,16 +29,6 @@ def get_ticker_infos(ticker_code: str):
 @router.get("/ticker/{ticker_code}/aggregate/{timeframe}/{from_date}/{to_date}", response_model=TickerAggregateResponse[TickerAggregateSchema])
 def read_ticker_in_range(ticker_code: str,timeframe: str, from_date: str, to_date: str, limit: int = None, sort: str = 'asc'):
     data = get_historical_rates(ticker_code,timeframe, from_date, to_date, limit, sort, type='CRYPTO')
-    if data['status'] != 'success':
-        match data['error']:
-            case 'INVALID TIMEFRAME':
-                raise HTTPException(status_code=422, detail="Invalid timeframe")
-            case 'TICKER NOT FOUND':
-                raise HTTPException(status_code=404, detail="Invalid ticker")
-            case 'INVALID LIMIT':
-                raise HTTPException(status_code=400, detail="Invalid limit value")
-            case _:
-                raise HTTPException(status_code=500, detail="Error")
 
     return {
         "status": data['status'],
