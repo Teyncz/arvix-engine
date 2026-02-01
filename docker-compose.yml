@@ -1,0 +1,63 @@
+services:
+  db_back:
+    image: postgres:16-alpine
+    container_name: arvix_engine_db
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: ${DB_BACK_USER:-financeuser}
+      POSTGRES_PASSWORD: ${DB_BACK_PASSWORD:-financepass}
+      POSTGRES_DB: ${DB_BACK_NAME:-financedb}
+    volumes:
+      - postgres_back_data:/var/lib/postgresql/data
+    ports:
+      - "${DB_BACK_PORT:-5432}:5432"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${DB_BACK_USER:-financeuser} -d ${DB_BACK_NAME:-financedb}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  api:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: arvix_engine
+    restart: unless-stopped
+    depends_on:
+      db_back:
+        condition: service_healthy
+    environment:
+      DB_BACK_USER: ${DB_BACK_USER:-financeuser}
+      DB_BACK_PASSWORD: ${DB_BACK_PASSWORD:-financepass}
+      DB_BACK_HOST: db_back
+      DB_BACK_PORT: 5432
+      DB_BACK_NAME: ${DB_BACK_NAME:-financedb}
+      SYNC_API_SECRET: ${SYNC_API_SECRET:-your_secret_key}
+    command: ["uvicorn", "api.main:app", "--host", "0.0.0.0", "--port", "8000", "--reload"]
+    ports:
+      - "8000:8000"
+    volumes:
+      - ./logs:/app/logs
+
+  scheduler:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: arvix_scheduler
+    working_dir: /app/acquisition
+    restart: unless-stopped
+    depends_on:
+      db_back:
+        condition: service_healthy
+    environment:
+      - PYTHONPATH=/app
+      - DB_BACK_HOST=db_back
+      - DB_BACK_PORT=5432
+      - DB_BACK_USER=${DB_BACK_USER}
+      - DB_BACK_PASSWORD=${DB_BACK_PASSWORD}
+      - DB_BACK_NAME=${DB_BACK_NAME}
+    command: ["python", "scheduler.py"]
+
+volumes:
+  postgres_back_data:
+
