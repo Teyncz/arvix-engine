@@ -1,5 +1,5 @@
 from fastapi import APIRouter, HTTPException, Depends
-from utils.sync import add_api_key, edit_api_key, add_user
+from services.sync_service import add_api_key, edit_api_key, add_user
 from database.crud import get_historical_rates
 from api.schemas import UserUsage, UserSyncSchema
 from api.dependencies import verify_internal_secret, get_credits_amount

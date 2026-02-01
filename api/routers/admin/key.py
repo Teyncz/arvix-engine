@@ -1,5 +1,5 @@
 from fastapi import APIRouter, HTTPException, Depends
-from utils.sync import add_api_key, edit_api_key, delete_api_key
+from services.sync_service import add_api_key, edit_api_key, delete_api_key
 from database.crud import get_historical_rates
 from api.schemas import TickerDataResponse, TickerAggregateResponse, ApiKeySyncSchema, EditApiKeySyncSchema, DeleteApiKeySyncSchema
 from api.dependencies import verify_internal_secret
