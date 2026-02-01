@@ -3,6 +3,13 @@ class AppException(Exception):
         self.message = message
         super().__init__(self.message)
 
+class ServiceUnexpectedError(AppException):
+    """Exception raised for unexpected errors in services."""
+    def __init__(self, detail: str = "An unexpected error occurred in the service."):
+        self.message = detail
+        self.status_code = 500
+        super().__init__(self.message)
+
 class TickerNotFoundException(AppException):
     """Exception raised when a ticker is not found in the database."""
     def __init__(self, ticker_code: str):
