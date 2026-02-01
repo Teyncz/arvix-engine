@@ -117,7 +117,7 @@ async def run_async_acquisition(index_list, intervals, timeframe):
 
     print(f"{len(final_data_for_db)} lines were inserted.")
 
-def fetch_index_data(timeframe):
+def fetch_ecb_data(timeframe):
     index_list = get_ticker_list_by_type("CURRENCY")
 
     intervals = {"day": 'D', "month": 'M', "year": 'A'}
@@ -125,5 +125,3 @@ def fetch_index_data(timeframe):
     last_entry = get_last_date_by_type('INDEX', timeframe)
 
     asyncio.run(run_async_acquisition(index_list, intervals, timeframe))
-
-fetch_index_data('month')

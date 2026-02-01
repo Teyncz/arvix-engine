@@ -116,4 +116,3 @@ def fetch_index_data(timeframe):
 
     asyncio.run(run_async_acquisition(index_list, intervals, timeframe))
 
-fetch_index_data('week')
