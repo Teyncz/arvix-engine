@@ -2,7 +2,6 @@ import os
 from dotenv import load_dotenv
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
-#from models import Base
 
 load_dotenv()
 
@@ -23,13 +22,6 @@ db_front_url = f"postgresql+psycopg2://{db_front_user}:{db_front_password}@{db_f
 
 engine = create_engine(db_back_url)
 front_engine = create_engine(db_front_url)
-
-#try:
-#    conn = engine.connect()
-#    Base.metadata.drop_all(engine)
-#    Base.metadata.create_all(engine)
-#except Exception as e:
-#    print(e)
 
 SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
 FrontSessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=front_engine)

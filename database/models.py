@@ -76,7 +76,6 @@ class TickerRateWeek(Base):
 
     symbol = relationship("Symbol", back_populates="ticker_id_week")
 
-
 class TickerRateMonth(Base):
     __tablename__ = 'ticker_rate_month'
 

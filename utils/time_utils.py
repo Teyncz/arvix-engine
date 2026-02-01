@@ -9,16 +9,17 @@ from dateutil.relativedelta import relativedelta
 import calendar
 
 
+# Get current date
 def get_current_date():
     now = datetime.datetime.now().date()
     return now
 
-
+# Calculate past date by days ago
 def calculate_past_date(days_ago):
     date = get_current_date() - datetime.timedelta(days=days_ago)
     return date
 
-
+# Check if ticker is up to date for given timeframe
 def is_ticker_up_to_day(last_date, timestamp):
     last_date_obj = datetime.fromtimestamp(last_date / 1000, tz=timezone.utc)
 

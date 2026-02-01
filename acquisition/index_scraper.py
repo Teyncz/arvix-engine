@@ -110,10 +110,10 @@ async def run_async_acquisition(index_list, intervals, timeframe):
 def fetch_index_data(timeframe):
     index_list = get_ticker_list_by_type("INDEX")
 
-    intervals = {"day": 'd', "month": 'm', "week": 'w', 'year': 'y'}
+    intervals = {"day": 'd', "month": 'm', "week": 'w'}
 
     last_entry = get_last_date_by_type('INDEX', timeframe)
 
     asyncio.run(run_async_acquisition(index_list, intervals, timeframe))
 
-fetch_index_data('day')
+fetch_index_data('week')

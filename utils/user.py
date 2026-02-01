@@ -20,9 +20,7 @@ def get_user_usage(key_id, key, name, user_id):
 
     try:
         db.commit()
-
         db.refresh(new_key)
-
         return True
 
     except Exception as e:
