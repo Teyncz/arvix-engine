@@ -109,7 +109,7 @@ def add_user(user_id, email) :
 
     except Exception as e:
         db.rollback()
-        print(f"❌ DATABASE ERROR: {str(e)}")
+        print(f"DEBUG DB ERROR: {str(e)}")
         return False
 
     finally:
