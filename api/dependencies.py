@@ -47,8 +47,14 @@ def get_client_by_api_key(api_key: str):
         key = db.query(ApiKey).filter(ApiKey.key == api_key, ApiKey.status == True).first()
 
         return key.userId if key else None
+    except HTTPException:
+        raise
     except Exception as ex:
-        raise HTTPException(status_code=401, detail="Invalid API key")
+        import logging
+        import traceback
+        logging.getLogger(__name__).error(f"DB error validating API key: {ex}")
+        traceback.print_exc()
+        raise HTTPException(status_code=500, detail="Internal server error")
 
     finally:
         if db:

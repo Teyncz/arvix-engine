@@ -1,15 +1,18 @@
 from fastapi import APIRouter, HTTPException
-from utils.ticker import get_all_crypto, get_ticker_data
+from utils.ticker import get_all_crypto, get_ticker_data, get_ticker_list_by_type
 from database.crud import get_historical_rates
 from api.schemas import TickerDataResponse, TickerAggregateResponse, TickerOverviewResponse, TickerAggregateSchema
-from core.exceptions import TickerNotFoundException
+from core.exceptions import TickerNotFoundException, ServiceUnexpectedError
+
 router = APIRouter()
 
 @router.get("/overview", response_model=TickerOverviewResponse)
-def read_overview():
-    data = get_all_crypto()
-    if not data :
-        raise HTTPException(status_code=404, detail="Data not found")
+async def read_overview():
+    data = get_ticker_list_by_type("INDEX")
+
+    if not data:
+        raise ServiceUnexpectedError()
+
     return {
         "count": len(data),
         "data": data,
