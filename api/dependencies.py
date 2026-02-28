@@ -1,4 +1,4 @@
-from database.connection import SessionLocal, FrontSessionLocal
+from database.connection import SessionLocal
 from database.models import RequestsUsage, ApiKey, User, Plan
 from fastapi.security import APIKeyHeader, APIKeyQuery
 from fastapi import Security, HTTPException, status, Query, Header
