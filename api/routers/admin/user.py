@@ -20,11 +20,19 @@ def get_user_usage(payload: UserUsage,):
         "data" : usage,
     }
 
+
 @router.post("/sync/add")
-def create_user(payload: UserSyncSchema,):
-    newUser = add_user(payload.user_id, payload.email)
-    if not newUser:
-        raise HTTPException(status_code=400, detail="User creation failed")
-    return {
-        "status": "success",
-    }
+def create_user(payload: UserSyncSchema):
+    try:
+        # On tente l'ajout
+        newUser = add_user(payload.user_id, payload.email)
+
+        if not newUser:
+            # Si add_user a renvoyé False sans crash, c'est un souci logique
+            raise HTTPException(status_code=400, detail="User creation failed in add_user function")
+
+        return {"status": "success"}
+
+    except Exception as e:
+        # ICI : On renvoie l'erreur réelle (SQL, Type, etc.) dans le JSON
+        raise HTTPException(status_code=500, detail=f"CRASH LOG: {str(e)}")
